@@ -14,7 +14,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.Executor;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -35,9 +34,6 @@ class NotificationServiceTest {
     @Mock
     private NotificationStrategy smsStrategy;
 
-    @Mock
-    private Executor taskExecutor;
-
     private NotificationService notificationService;
 
     @BeforeEach
@@ -46,14 +42,8 @@ class NotificationServiceTest {
         lenient().when(emailStrategy.getSupportedChannel()).thenReturn(ChannelType.EMAIL);
         lenient().when(smsStrategy.getSupportedChannel()).thenReturn(ChannelType.SMS);
 
-        // Execute tasks immediately for testing
-        lenient().doAnswer(invocation -> {
-            ((Runnable) invocation.getArgument(0)).run();
-            return null;
-        }).when(taskExecutor).execute(any(Runnable.class));
-
         List<NotificationStrategy> strategies = Arrays.asList(emailStrategy, smsStrategy);
-        notificationService = new NotificationService(userService, logRepository, strategies, taskExecutor);
+        notificationService = new NotificationService(userService, logRepository, strategies);
     }
 
     @Test
@@ -84,9 +74,6 @@ class NotificationServiceTest {
         
         // Verify smsStrategy was NOT called (user2 not subscribed to SPORTS)
         verify(smsStrategy, never()).send(any(), any());
-
-        // Verify the async task was dispatched for the one matching user
-        verify(taskExecutor, times(1)).execute(any(Runnable.class));
 
         // Verify log was saved for the successful notification
         verify(logRepository, times(1)).save(any(NotificationLog.class));
@@ -176,9 +163,6 @@ class NotificationServiceTest {
         notificationService.processMessage(request);
 
         // Then
-        // Verify the task executor was called because the user is subscribed
-        verify(taskExecutor, times(1)).execute(any(Runnable.class));
-
         // But no strategy should be called because the user has no channels
         verify(emailStrategy, never()).send(any(), any());
         verify(smsStrategy, never()).send(any(), any());
@@ -198,6 +182,6 @@ class NotificationServiceTest {
         notificationService.processMessage(request);
 
         // Then
-        verify(taskExecutor, never()).execute(any());
+        verify(emailStrategy, never()).send(any(), any());
     }
 }
