@@ -85,6 +85,9 @@ class NotificationServiceTest {
         // Verify smsStrategy was NOT called (user2 not subscribed to SPORTS)
         verify(smsStrategy, never()).send(any(), any());
 
+        // Verify the async task was dispatched for the one matching user
+        verify(taskExecutor, times(1)).execute(any(Runnable.class));
+
         // Verify log was saved for the successful notification
         verify(logRepository, times(1)).save(any(NotificationLog.class));
     }
@@ -153,5 +156,48 @@ class NotificationServiceTest {
         // Then
         verify(logRepository, times(1)).findAll();
         org.assertj.core.api.Assertions.assertThat(logs).hasSize(2);
+    }
+
+    @Test
+    void processMessage_shouldNotNotifyUserWithNoChannels() {
+        // Given
+        Category category = Category.SPORTS;
+        MessageRequest request = new MessageRequest();
+        request.setCategory(category);
+        request.setMessage("Sports Update");
+
+        // User subscribed to SPORTS but has no notification channels configured
+        User userWithNoChannels = new User("4", "User4", "u4@test.com", "444",
+                Set.of(Category.SPORTS), Collections.emptySet());
+
+        when(userService.getAllUsers()).thenReturn(List.of(userWithNoChannels));
+
+        // When
+        notificationService.processMessage(request);
+
+        // Then
+        // Verify the task executor was called because the user is subscribed
+        verify(taskExecutor, times(1)).execute(any(Runnable.class));
+
+        // But no strategy should be called because the user has no channels
+        verify(emailStrategy, never()).send(any(), any());
+        verify(smsStrategy, never()).send(any(), any());
+        verify(logRepository, never()).save(any());
+    }
+
+    @Test
+    void processMessage_shouldDoNothingWhenNoUsersExist() {
+        // Given
+        MessageRequest request = new MessageRequest();
+        request.setCategory(Category.SPORTS);
+        request.setMessage("Update");
+
+        when(userService.getAllUsers()).thenReturn(Collections.emptyList());
+
+        // When
+        notificationService.processMessage(request);
+
+        // Then
+        verify(taskExecutor, never()).execute(any());
     }
 }
