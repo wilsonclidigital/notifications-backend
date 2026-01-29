@@ -14,6 +14,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.Executor;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -34,6 +35,9 @@ class NotificationServiceTest {
     @Mock
     private NotificationStrategy smsStrategy;
 
+    @Mock
+    private Executor taskExecutor;
+
     private NotificationService notificationService;
 
     @BeforeEach
@@ -42,8 +46,14 @@ class NotificationServiceTest {
         lenient().when(emailStrategy.getSupportedChannel()).thenReturn(ChannelType.EMAIL);
         lenient().when(smsStrategy.getSupportedChannel()).thenReturn(ChannelType.SMS);
 
+        // Execute tasks immediately for testing
+        lenient().doAnswer(invocation -> {
+            ((Runnable) invocation.getArgument(0)).run();
+            return null;
+        }).when(taskExecutor).execute(any(Runnable.class));
+
         List<NotificationStrategy> strategies = Arrays.asList(emailStrategy, smsStrategy);
-        notificationService = new NotificationService(userService, logRepository, strategies);
+        notificationService = new NotificationService(userService, logRepository, strategies, taskExecutor);
     }
 
     @Test

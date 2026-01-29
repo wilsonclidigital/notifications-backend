@@ -12,6 +12,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.concurrent.Executor;
 import java.util.List;
 
 @Service
@@ -22,11 +23,13 @@ public class NotificationService {
     private final UserService userService;
     private final NotificationLogRepository logRepository;
     private final List<NotificationStrategy> strategies;
+    private final Executor taskExecutor;
 
-    public NotificationService(UserService userService, NotificationLogRepository logRepository, List<NotificationStrategy> strategies) {
+    public NotificationService(UserService userService, NotificationLogRepository logRepository, List<NotificationStrategy> strategies, Executor taskExecutor) {
         this.userService = userService;
         this.logRepository = logRepository;
         this.strategies = strategies;
+        this.taskExecutor = taskExecutor;
     }
 
     public void processMessage(MessageRequest request) {
@@ -36,12 +39,12 @@ public class NotificationService {
         for (User user : users) {
             if (user.getSubscribedCategories().contains(request.getCategory())) {
                 notifiedUserCount++;
-                notifyUser(user, request.getMessage(), request.getCategory());
+                taskExecutor.execute(() -> notifyUser(user, request.getMessage(), request.getCategory()));
             } else {
                 log.trace("Skipping user {}: not subscribed to category {}", user.getId(), request.getCategory());
             }
         }
-        log.info("Finished notification process for category: {}. Targeted {} user(s).", request.getCategory(), notifiedUserCount);
+        log.info("Dispatched notification process for category: {}. Targeted {} user(s).", request.getCategory(), notifiedUserCount);
     }
 
     private void notifyUser(User user, String message, Category category) {
