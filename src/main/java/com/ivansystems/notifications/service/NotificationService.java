@@ -30,22 +30,33 @@ public class NotificationService {
     }
 
     public void processMessage(MessageRequest request) {
+        log.info("Starting notification process for category: {}", request.getCategory());
         List<User> users = userService.getAllUsers();
+        int notifiedUserCount = 0;
         for (User user : users) {
             if (user.getSubscribedCategories().contains(request.getCategory())) {
+                notifiedUserCount++;
                 notifyUser(user, request.getMessage(), request.getCategory());
+            } else {
+                log.trace("Skipping user {}: not subscribed to category {}", user.getId(), request.getCategory());
             }
         }
+        log.info("Finished notification process for category: {}. Targeted {} user(s).", request.getCategory(), notifiedUserCount);
     }
 
     private void notifyUser(User user, String message, Category category) {
+        log.debug("Notifying user {} for category {}", user.getId(), category);
         for (NotificationStrategy strategy : strategies) {
             if (user.getChannels().contains(strategy.getSupportedChannel())) {
+                ChannelType channel = strategy.getSupportedChannel();
+                log.debug("Attempting to send notification to user {} via {}", user.getId(), channel);
                 try {
                     strategy.send(user, message);
-                    logNotification(user, strategy.getSupportedChannel(), message, category);
+                    log.info("Successfully sent {} notification to user {}", channel, user.getId());
+                    logNotification(user, channel, message, category);
                 } catch (Exception e) {
-                    log.error("Failed to send {} notification to user {}", strategy.getSupportedChannel(), user.getId(), e);
+                    // The existing error log is good, providing essential details for failure analysis.
+                    log.error("Failed to send {} notification to user {}", channel, user.getId(), e);
                 }
             }
         }
