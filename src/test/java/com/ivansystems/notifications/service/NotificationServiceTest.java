@@ -1,6 +1,7 @@
 package com.ivansystems.notifications.service;
 
 import com.ivansystems.notifications.dto.MessageRequest;
+import com.ivansystems.notifications.exception.NotificationServiceException;
 import com.ivansystems.notifications.model.*;
 import com.ivansystems.notifications.repository.NotificationLogRepository;
 import com.ivansystems.notifications.service.strategy.NotificationStrategy;
@@ -17,6 +18,7 @@ import java.util.Set;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -183,5 +185,25 @@ class NotificationServiceTest {
 
         // Then
         verify(emailStrategy, never()).send(any(), any());
+    }
+
+    @Test
+    void processMessage_shouldThrowException_whenRequestIsInvalid() {
+        // Test null request
+        assertThrows(NotificationServiceException.class, () -> 
+            notificationService.processMessage(null));
+
+        // Test null category
+        MessageRequest requestNullCategory = new MessageRequest();
+        requestNullCategory.setMessage("Msg");
+        assertThrows(NotificationServiceException.class, () -> 
+            notificationService.processMessage(requestNullCategory));
+
+        // Test empty message
+        MessageRequest requestEmptyMsg = new MessageRequest();
+        requestEmptyMsg.setCategory(Category.SPORTS);
+        requestEmptyMsg.setMessage("");
+        assertThrows(NotificationServiceException.class, () -> 
+            notificationService.processMessage(requestEmptyMsg));
     }
 }

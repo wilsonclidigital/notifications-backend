@@ -1,6 +1,7 @@
 package com.ivansystems.notifications.service;
 
 import com.ivansystems.notifications.dto.MessageRequest;
+import com.ivansystems.notifications.exception.NotificationServiceException;
 import com.ivansystems.notifications.model.Category;
 import com.ivansystems.notifications.model.ChannelType;
 import com.ivansystems.notifications.model.NotificationLog;
@@ -30,6 +31,15 @@ public class NotificationService {
     }
 
     public void processMessage(MessageRequest request) {
+        if (request == null) {
+            throw new NotificationServiceException("Message request cannot be null");
+        }
+        if (request.getCategory() == null) {
+            throw new NotificationServiceException("Notification category cannot be null");
+        }
+        if (request.getMessage() == null || request.getMessage().trim().isEmpty()) {
+            throw new NotificationServiceException("Notification message cannot be empty");
+        }
         log.info("Starting notification process for category: {}", request.getCategory());
         List<User> users = userService.getAllUsers();
         int notifiedUserCount = 0;
