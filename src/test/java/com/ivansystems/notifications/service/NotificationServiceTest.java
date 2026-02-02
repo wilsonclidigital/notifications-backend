@@ -206,4 +206,28 @@ class NotificationServiceTest {
         assertThrows(NotificationServiceException.class, () -> 
             notificationService.processMessage(requestEmptyMsg));
     }
+
+    @Test
+    void processMessage_shouldSkipChannelsWithoutStrategy() {
+        // Given service configured ONLY with Email strategy (Simulating SMS strategy missing)
+        notificationService = new NotificationService(userService, logRepository, List.of(emailStrategy));
+
+        MessageRequest request = new MessageRequest();
+        request.setCategory(Category.SPORTS);
+        request.setMessage("Msg");
+
+        // User has SMS channel preference
+        User user = new User("6", "User6", "u6@test.com", "666",
+                Set.of(Category.SPORTS), Set.of(ChannelType.SMS));
+
+        when(userService.getAllUsers()).thenReturn(List.of(user));
+
+        // When
+        notificationService.processMessage(request);
+
+        // Then
+        // Email strategy should not be called because user doesn't have Email channel
+        verify(emailStrategy, never()).send(any(), any());
+        // No exception should be thrown, and execution should complete gracefully
+    }
 }
